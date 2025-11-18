@@ -1,0 +1,65 @@
+import { Controller, Post, Body, Get, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { AuthService } from './auth.service';
+import { RegisterDto } from './dto/register.dto';
+import { RegisterCandidatoDto } from './dto/register-candidato.dto';
+import { RegisterReclutadorDto } from './dto/register-reclutador.dto';
+import { LoginDto } from './dto/login.dto';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { RolesGuard } from './guards/roles.guard';
+import { Roles } from './decorators/roles.decorator';
+import { GetUser } from './decorators/get-user.decorator';
+
+@ApiTags('auth')
+@Controller('auth')
+export class AuthController {
+  constructor(private readonly authService: AuthService) {}
+
+  @Post('register')
+  async register(@Body() registerDto: RegisterDto) {
+    return this.authService.register(registerDto);
+  }
+
+  @Post('register/candidato')
+  async registerCandidato(@Body() registerCandidatoDto: RegisterCandidatoDto) {
+    return this.authService.registerCandidato(registerCandidatoDto);
+  }
+
+  @Post('register/reclutador')
+  async registerReclutador(@Body() registerReclutadorDto: RegisterReclutadorDto) {
+    return this.authService.registerReclutador(registerReclutadorDto);
+  }
+
+  @Post('login')
+  async login(@Body() loginDto: LoginDto) {
+    return this.authService.login(loginDto);
+  }
+
+  @Get('profile')
+  @UseGuards(JwtAuthGuard)
+  async getProfile(@GetUser() user: any) {
+    return user;
+  }
+
+  // Ejemplo de endpoint protegido solo para candidatos
+  @Get('candidato/test')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('candidato')
+  async candidatoOnly(@GetUser() user: any) {
+    return {
+      message: 'Este endpoint es solo para candidatos',
+      usuario: user,
+    };
+  }
+
+  // Ejemplo de endpoint protegido solo para reclutadores
+  @Get('reclutador/test')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('reclutador')
+  async reclutadorOnly(@GetUser() user: any) {
+    return {
+      message: 'Este endpoint es solo para reclutadores',
+      usuario: user,
+    };
+  }
+}

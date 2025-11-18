@@ -87,6 +87,10 @@ model Vacante {
   lenguajesVacante      LenguajeVacante[]
   habilidadesDiferencia HabilidadesDiferencia[]
   recomendaciones Recomendacion[]
+
+  @@index([estado])
+  @@index([empresaId])
+  @@index([reclutadorId])
 }         
 
 model Postulacion {
@@ -99,6 +103,10 @@ model Postulacion {
 
   vacante   Vacante @relation(fields: [vacanteId], references: [id])
   vacanteId String
+
+  @@index([candidatoId])
+  @@index([vacanteId])
+  @@unique([candidatoId, vacanteId])
 }
 
 model Lenguaje {
@@ -118,6 +126,9 @@ model LenguajeCandidato {
 
   candidato   Candidato @relation(fields: [candidatoId], references: [id])
   candidatoId String
+
+  @@unique([candidatoId, lenguajeId])
+  @@index([candidatoId])
 }
 
 model LenguajeVacante {
@@ -129,6 +140,9 @@ model LenguajeVacante {
 
   vacante   Vacante @relation(fields: [vacanteId], references: [id])
   vacanteId String
+
+  @@unique([vacanteId, lenguajeId])
+  @@index([vacanteId])
 }
 
 model Candidato {
@@ -161,6 +175,8 @@ model ExperienciaCandidato {
 
   candidato   Candidato @relation(fields: [candidatoId], references: [id])
   candidatoId String
+
+  @@index([candidatoId])
 }
 
 model EducacionCandidato {
@@ -174,6 +190,8 @@ model EducacionCandidato {
 
   candidato   Candidato @relation(fields: [candidatoId], references: [id])
   candidatoId String
+
+  @@index([candidatoId])
 }
 
 model CategoriaHabilidad {
@@ -205,6 +223,10 @@ model HabilidadesVacante {
 
   habilidad   Habilidades @relation(fields: [habilidadId], references: [id])
   habilidadId String
+
+  @@unique([vacanteId, habilidadId])
+  @@index([vacanteId])
+  @@index([habilidadId])
 }
 
 model HabilidadesCandidato {
@@ -216,6 +238,10 @@ model HabilidadesCandidato {
 
   habilidad   Habilidades @relation(fields: [habilidadId], references: [id])
   habilidadId String
+
+  @@unique([candidatoId, habilidadId])
+  @@index([candidatoId])
+  @@index([habilidadId])
 }
 
 model HabilidadesDiferencia {
@@ -232,6 +258,10 @@ model HabilidadesDiferencia {
   habilidadId String
 
   recomendaciones Recomendacion[]
+
+  @@unique([candidatoId, vacanteId, habilidadId])
+  @@index([candidatoId])
+  @@index([vacanteId])
 }
 
 model Recomendacion {
@@ -250,6 +280,10 @@ model Recomendacion {
 
 
   cursos RecomendacionCurso[]
+
+  @@index([candidatoId])
+  @@index([vacanteId])
+  @@index([habilidadesDiferenciaId])
 }
 
 model RecomendacionCurso {
@@ -261,6 +295,9 @@ model RecomendacionCurso {
 
   curso   Curso @relation(fields: [cursoId], references: [id])
   cursoId String
+
+  @@unique([recomendacionId, cursoId])
+  @@index([recomendacionId])
 }
 
 model Curso {
