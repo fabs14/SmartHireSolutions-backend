@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { RegisterCandidatoDto } from './dto/register-candidato.dto';
 import { RegisterReclutadorDto } from './dto/register-reclutador.dto';
+import { RegisterEmpresaDto } from './dto/register-empresa.dto';
 import { LoginDto } from './dto/login.dto';
 
 @Injectable()
@@ -15,7 +16,6 @@ export class AuthService {
   ) {}
 
   async register(registerDto: RegisterDto) {
-    // Verificar si el correo ya existe
     const existingUser = await this.prisma.usuario.findUnique({
       where: { correo: registerDto.correo },
     });
@@ -24,10 +24,8 @@ export class AuthService {
       throw new ConflictException('El correo ya está registrado');
     }
 
-    // Hashear la contraseña
     const hashedPassword = await bcrypt.hash(registerDto.password, 10);
 
-    // Crear el usuario
     const usuario = await this.prisma.usuario.create({
       data: {
         name: registerDto.name,
@@ -50,7 +48,6 @@ export class AuthService {
       },
     });
 
-    // Generar token
     const token = this.generateToken(usuario.id, usuario.correo);
 
     return {
@@ -60,7 +57,6 @@ export class AuthService {
   }
 
   async login(loginDto: LoginDto) {
-    // Buscar usuario por correo
     const usuario = await this.prisma.usuario.findUnique({
       where: { correo: loginDto.correo },
       include: {
@@ -77,7 +73,6 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    // Verificar contraseña
     const isPasswordValid = await bcrypt.compare(
       loginDto.password,
       usuario.password,
@@ -87,10 +82,8 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    // Generar token
     const token = this.generateToken(usuario.id, usuario.correo);
 
-    // Determinar el tipo de usuario
     let tipoUsuario = 'usuario';
     if (usuario.candidato) {
       tipoUsuario = 'candidato';
@@ -98,7 +91,6 @@ export class AuthService {
       tipoUsuario = 'reclutador';
     }
 
-    // Eliminar la contraseña del objeto de respuesta
     const { password, ...usuarioSinPassword } = usuario;
 
     return {
@@ -140,19 +132,17 @@ export class AuthService {
   }
 
   async registerCandidato(registerCandidatoDto: RegisterCandidatoDto) {
-    // Verificar si el correo ya existe
-    const existingUser = await this.prisma.usuario.findUnique({
-      where: { correo: registerCandidatoDto.correo },
-    });
+    const [existingUser, hashedPassword] = await Promise.all([
+      this.prisma.usuario.findUnique({
+        where: { correo: registerCandidatoDto.correo },
+      }),
+      bcrypt.hash(registerCandidatoDto.password, 10),
+    ]);
 
     if (existingUser) {
       throw new ConflictException('El correo ya está registrado');
     }
 
-    // Hashear la contraseña
-    const hashedPassword = await bcrypt.hash(registerCandidatoDto.password, 10);
-
-    // Crear el usuario con el perfil de candidato en una transacción
     const usuario = await this.prisma.usuario.create({
       data: {
         name: registerCandidatoDto.name,
@@ -171,47 +161,46 @@ export class AuthService {
           },
         },
       },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        lastname: true,
+        correo: true,
+        telefono: true,
+        fecha_nacimiento: true,
+        creado_en: true,
         candidato: true,
       },
     });
 
-    // Generar token
     const token = this.generateToken(usuario.id, usuario.correo);
 
-    // Eliminar password de la respuesta
-    const { password, ...usuarioSinPassword } = usuario;
-
     return {
-      usuario: usuarioSinPassword,
+      usuario,
       tipoUsuario: 'candidato',
       token,
     };
   }
 
   async registerReclutador(registerReclutadorDto: RegisterReclutadorDto) {
-    // Verificar si el correo ya existe
-    const existingUser = await this.prisma.usuario.findUnique({
-      where: { correo: registerReclutadorDto.correo },
-    });
+    const [existingUser, empresa, hashedPassword] = await Promise.all([
+      this.prisma.usuario.findUnique({
+        where: { correo: registerReclutadorDto.correo },
+      }),
+      this.prisma.empresa.findUnique({
+        where: { id: registerReclutadorDto.empresaId },
+      }),
+      bcrypt.hash(registerReclutadorDto.password, 10),
+    ]);
 
     if (existingUser) {
       throw new ConflictException('El correo ya está registrado');
     }
 
-    // Verificar que la empresa existe
-    const empresa = await this.prisma.empresa.findUnique({
-      where: { id: registerReclutadorDto.empresaId },
-    });
-
     if (!empresa) {
       throw new NotFoundException('La empresa especificada no existe');
     }
 
-    // Hashear la contraseña
-    const hashedPassword = await bcrypt.hash(registerReclutadorDto.password, 10);
-
-    // Crear el usuario con el perfil de reclutador en una transacción
     const usuario = await this.prisma.usuario.create({
       data: {
         name: registerReclutadorDto.name,
@@ -229,7 +218,14 @@ export class AuthService {
           },
         },
       },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        lastname: true,
+        correo: true,
+        telefono: true,
+        fecha_nacimiento: true,
+        creado_en: true,
         reclutador: {
           include: {
             empresa: true,
@@ -238,14 +234,71 @@ export class AuthService {
       },
     });
 
-    // Generar token
     const token = this.generateToken(usuario.id, usuario.correo);
 
-    // Eliminar password de la respuesta
-    const { password, ...usuarioSinPassword } = usuario;
+    return {
+      usuario,
+      tipoUsuario: 'reclutador',
+      token,
+    };
+  }
+
+  async registerEmpresa(registerEmpresaDto: RegisterEmpresaDto) {
+    const [existingUser, hashedPassword] = await Promise.all([
+      this.prisma.usuario.findUnique({
+        where: { correo: registerEmpresaDto.correo },
+      }),
+      bcrypt.hash(registerEmpresaDto.password, 10),
+    ]);
+
+    if (existingUser) {
+      throw new ConflictException('El correo ya está registrado');
+    }
+
+    const result = await this.prisma.$transaction(async (prisma) => {
+      const usuario = await prisma.usuario.create({
+        data: {
+          name: registerEmpresaDto.name,
+          lastname: registerEmpresaDto.lastname,
+          correo: registerEmpresaDto.correo,
+          password: hashedPassword,
+          telefono: registerEmpresaDto.telefono,
+        },
+      });
+
+      const empresa = await prisma.empresa.create({
+        data: {
+          name: registerEmpresaDto.nombreEmpresa,
+          descripcion: registerEmpresaDto.descripcionEmpresa,
+          area: registerEmpresaDto.areaEmpresa,
+          creadorId: usuario.id,
+        },
+      });
+
+      const reclutador = await prisma.reclutador.create({
+        data: {
+          usuarioId: usuario.id,
+          empresaId: empresa.id,
+          posicion: registerEmpresaDto.posicion || 'Administrador',
+        },
+      });
+
+      return { usuario, empresa, reclutador };
+    });
+
+    const token = this.generateToken(result.usuario.id, result.usuario.correo);
+
+    const { password, ...usuarioSinPassword } = result.usuario;
 
     return {
-      usuario: usuarioSinPassword,
+      usuario: {
+        ...usuarioSinPassword,
+        reclutador: {
+          ...result.reclutador,
+          empresa: result.empresa,
+        },
+      },
+      empresa: result.empresa,
       tipoUsuario: 'reclutador',
       token,
     };

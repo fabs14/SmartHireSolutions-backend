@@ -8,17 +8,15 @@ export class VacanteService {
   constructor(private prisma: PrismaService) {}
 
   async create(createVacanteDto: CreateVacanteDto, reclutadorId: string) {
-    // Verificar que el reclutador pertenece a la empresa
-    const reclutador = await this.prisma.reclutador.findUnique({
-      where: { id: reclutadorId },
+    const reclutador = await this.prisma.reclutador.findFirst({
+      where: { 
+        id: reclutadorId,
+        empresaId: createVacanteDto.empresaId 
+      },
     });
 
     if (!reclutador) {
-      throw new NotFoundException('Reclutador no encontrado');
-    }
-
-    if (reclutador.empresaId !== createVacanteDto.empresaId) {
-      throw new ForbiddenException('No puedes crear vacantes para otra empresa');
+      throw new ForbiddenException('No puedes crear vacantes para esta empresa');
     }
 
     return this.prisma.vacante.create({
@@ -88,16 +86,15 @@ export class VacanteService {
   }
 
   async update(id: string, updateVacanteDto: UpdateVacanteDto, reclutadorId: string) {
-    const vacante = await this.prisma.vacante.findUnique({
-      where: { id },
+    const vacante = await this.prisma.vacante.findFirst({
+      where: { 
+        id,
+        reclutadorId 
+      },
     });
 
     if (!vacante) {
-      throw new NotFoundException(`Vacante con ID ${id} no encontrada`);
-    }
-
-    if (vacante.reclutadorId !== reclutadorId) {
-      throw new ForbiddenException('No puedes editar vacantes de otro reclutador');
+      throw new ForbiddenException('Vacante no encontrada o no tienes permiso para editarla');
     }
 
     return this.prisma.vacante.update({
@@ -112,16 +109,15 @@ export class VacanteService {
   }
 
   async remove(id: string, reclutadorId: string) {
-    const vacante = await this.prisma.vacante.findUnique({
-      where: { id },
+    const vacante = await this.prisma.vacante.findFirst({
+      where: { 
+        id,
+        reclutadorId 
+      },
     });
 
     if (!vacante) {
-      throw new NotFoundException(`Vacante con ID ${id} no encontrada`);
-    }
-
-    if (vacante.reclutadorId !== reclutadorId) {
-      throw new ForbiddenException('No puedes eliminar vacantes de otro reclutador');
+      throw new ForbiddenException('Vacante no encontrada o no tienes permiso para eliminarla');
     }
 
     await this.prisma.vacante.delete({ where: { id } });
@@ -129,16 +125,15 @@ export class VacanteService {
   }
 
   async updateEstado(id: string, estado: string, reclutadorId: string) {
-    const vacante = await this.prisma.vacante.findUnique({
-      where: { id },
+    const vacante = await this.prisma.vacante.findFirst({
+      where: { 
+        id,
+        reclutadorId 
+      },
     });
 
     if (!vacante) {
-      throw new NotFoundException(`Vacante con ID ${id} no encontrada`);
-    }
-
-    if (vacante.reclutadorId !== reclutadorId) {
-      throw new ForbiddenException('No puedes modificar vacantes de otro reclutador');
+      throw new ForbiddenException('Vacante no encontrada o no tienes permiso para modificarla');
     }
 
     return this.prisma.vacante.update({
@@ -148,22 +143,21 @@ export class VacanteService {
   }
 
   async addHabilidad(vacanteId: string, habilidadId: string, nivel: number, requerido: string, reclutadorId: string) {
-    const vacante = await this.prisma.vacante.findUnique({
-      where: { id: vacanteId },
-    });
+    const [vacante, habilidad] = await Promise.all([
+      this.prisma.vacante.findFirst({
+        where: { 
+          id: vacanteId,
+          reclutadorId 
+        },
+      }),
+      this.prisma.habilidades.findUnique({
+        where: { id: habilidadId },
+      }),
+    ]);
 
     if (!vacante) {
-      throw new NotFoundException(`Vacante con ID ${vacanteId} no encontrada`);
+      throw new ForbiddenException('Vacante no encontrada o no tienes permiso para modificarla');
     }
-
-    if (vacante.reclutadorId !== reclutadorId) {
-      throw new ForbiddenException('No puedes modificar vacantes de otro reclutador');
-    }
-
-    // Verificar que la habilidad existe
-    const habilidad = await this.prisma.habilidades.findUnique({
-      where: { id: habilidadId },
-    });
 
     if (!habilidad) {
       throw new NotFoundException(`Habilidad con ID ${habilidadId} no encontrada`);
@@ -187,16 +181,15 @@ export class VacanteService {
   }
 
   async removeHabilidad(vacanteId: string, habilidadId: string, reclutadorId: string) {
-    const vacante = await this.prisma.vacante.findUnique({
-      where: { id: vacanteId },
+    const vacante = await this.prisma.vacante.findFirst({
+      where: { 
+        id: vacanteId,
+        reclutadorId 
+      },
     });
 
     if (!vacante) {
-      throw new NotFoundException(`Vacante con ID ${vacanteId} no encontrada`);
-    }
-
-    if (vacante.reclutadorId !== reclutadorId) {
-      throw new ForbiddenException('No puedes modificar vacantes de otro reclutador');
+      throw new ForbiddenException('Vacante no encontrada o no tienes permiso para modificarla');
     }
 
     await this.prisma.habilidadesVacante.delete({
@@ -212,22 +205,21 @@ export class VacanteService {
   }
 
   async addLenguaje(vacanteId: string, lenguajeId: string, nivel: number, reclutadorId: string) {
-    const vacante = await this.prisma.vacante.findUnique({
-      where: { id: vacanteId },
-    });
+    const [vacante, lenguaje] = await Promise.all([
+      this.prisma.vacante.findFirst({
+        where: { 
+          id: vacanteId,
+          reclutadorId 
+        },
+      }),
+      this.prisma.lenguaje.findUnique({
+        where: { id: lenguajeId },
+      }),
+    ]);
 
     if (!vacante) {
-      throw new NotFoundException(`Vacante con ID ${vacanteId} no encontrada`);
+      throw new ForbiddenException('Vacante no encontrada o no tienes permiso para modificarla');
     }
-
-    if (vacante.reclutadorId !== reclutadorId) {
-      throw new ForbiddenException('No puedes modificar vacantes de otro reclutador');
-    }
-
-    // Verificar que el lenguaje existe
-    const lenguaje = await this.prisma.lenguaje.findUnique({
-      where: { id: lenguajeId },
-    });
 
     if (!lenguaje) {
       throw new NotFoundException(`Lenguaje con ID ${lenguajeId} no encontrado`);
@@ -246,16 +238,15 @@ export class VacanteService {
   }
 
   async removeLenguaje(vacanteId: string, lenguajeId: string, reclutadorId: string) {
-    const vacante = await this.prisma.vacante.findUnique({
-      where: { id: vacanteId },
+    const vacante = await this.prisma.vacante.findFirst({
+      where: { 
+        id: vacanteId,
+        reclutadorId 
+      },
     });
 
     if (!vacante) {
-      throw new NotFoundException(`Vacante con ID ${vacanteId} no encontrada`);
-    }
-
-    if (vacante.reclutadorId !== reclutadorId) {
-      throw new ForbiddenException('No puedes modificar vacantes de otro reclutador');
+      throw new ForbiddenException('Vacante no encontrada o no tienes permiso para modificarla');
     }
 
     await this.prisma.lenguajeVacante.delete({

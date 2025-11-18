@@ -14,10 +14,20 @@ export class PostulacionService {
   async create(candidatoId: string, createPostulacionDto: CreatePostulacionDto) {
     const { vacanteId } = createPostulacionDto;
 
-    // Verificar que la vacante existe y está activa el enum esta chistoso asi que dejemoslo en cerrada
-    const vacante = await this.prisma.vacante.findUnique({
-      where: { id: vacanteId },
-    });
+    // Verificar vacante existe/activa y postulación existente en paralelo
+    const [vacante, existingPostulacion] = await Promise.all([
+      this.prisma.vacante.findUnique({
+        where: { id: vacanteId },
+      }),
+      this.prisma.postulacion.findUnique({
+        where: {
+          candidatoId_vacanteId: {
+            candidatoId,
+            vacanteId,
+          },
+        },
+      }),
+    ]);
 
     if (!vacante) {
       throw new NotFoundException('Vacante no encontrada');
@@ -26,16 +36,6 @@ export class PostulacionService {
     if (vacante.estado === 'CERRADA') {
       throw new ConflictException('La vacante está cerrada');
     }
-
-    // Verificar que no existe una postulación previa
-    const existingPostulacion = await this.prisma.postulacion.findUnique({
-      where: {
-        candidatoId_vacanteId: {
-          candidatoId,
-          vacanteId,
-        },
-      },
-    });
 
     if (existingPostulacion) {
       throw new ConflictException('Ya te has postulado a esta vacante');

@@ -1,4 +1,4 @@
-import { IsString, IsOptional, MinLength } from 'class-validator';
+import { IsString, IsOptional, MinLength, IsUUID } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateEmpresaDto {
@@ -20,4 +20,9 @@ export class CreateEmpresaDto {
   @IsOptional()
   @IsString()
   area?: string;
+
+  @ApiProperty({ example: 'uuid-del-usuario', description: 'ID del usuario creador de la empresa' })
+  @IsString()
+  @IsUUID()
+  creadorId: string;
 }

@@ -15,6 +15,8 @@ import { CandidatoModule } from './candidato/candidato.module';
 import { PostulacionModule } from './postulacion/postulacion.module';
 import { ExperienciaModule } from './experiencia/experiencia.module';
 import { EducacionModule } from './educacion/educacion.module';
+import { MatchingModule } from './matching/matching.module';
+import { ChatbotModule } from './chatbot/chatbot.module';
 
 @Module({
   imports: [
@@ -50,6 +52,10 @@ import { EducacionModule } from './educacion/educacion.module';
     ExperienciaModule,
     
     EducacionModule,
+    
+    MatchingModule,
+    
+    ChatbotModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -2,6 +2,7 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query, Pu
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { CandidatoService } from './candidato.service';
 import { UpdateCandidatoDto } from './dto/update-candidato.dto';
+import { ParseCvDto } from './dto/parse-cv.dto';
 import { AddHabilidadCandidatoDto, AddLenguajeCandidatoDto } from './dto/create-candidato.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -29,6 +30,15 @@ export class CandidatoController {
   @ApiOperation({ summary: 'Actualizar perfil del candidato' })
   updateProfile(@GetUser() user: any, @Body() updateDto: UpdateCandidatoDto) {
     return this.candidatoService.updateProfile(user.candidato.id, updateDto);
+  }
+
+  @Post('profile/parse-cv')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('candidato')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Procesar CV con OCR y actualizar perfil automáticamente' })
+  parseCv(@GetUser() user: any, @Body() parseCvDto: ParseCvDto) {
+    return this.candidatoService.parseCvWithGPT(user.candidato.id, parseCvDto);
   }
 
   @Post('profile/habilidades')

@@ -1,10 +1,18 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { UpdateCandidatoDto } from './dto/update-candidato.dto';
+import { ParseCvDto } from './dto/parse-cv.dto';
 import { PrismaService } from '../prisma/prisma.service';
+import OpenAI from 'openai';
 
 @Injectable()
 export class CandidatoService {
-  constructor(private prisma: PrismaService) {}
+  private openai: OpenAI;
+
+  constructor(private prisma: PrismaService) {
+    this.openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+  }
 
   async getProfile(candidatoId: string) {
     const candidato = await this.prisma.candidato.findUnique({
@@ -198,5 +206,133 @@ export class CandidatoService {
     }
 
     return candidatos;
+  }
+
+  async parseCvWithGPT(candidatoId: string, parseCvDto: ParseCvDto) {
+    const { cvText } = parseCvDto;
+
+    // 1. Obtener todas las habilidades y lenguajes disponibles de la BD
+    const [todasHabilidades, todosLenguajes] = await Promise.all([
+      this.prisma.habilidades.findMany({
+        select: { id: true, nombre: true },
+      }),
+      this.prisma.lenguaje.findMany({
+        select: { id: true, nombre: true },
+      }),
+    ]);
+
+    const habilidadesDisponibles = todasHabilidades.map(h => h.nombre).join(', ');
+    const lenguajesDisponibles = todosLenguajes.map(l => l.nombre).join(', ');
+
+    // 2. Usar GPT para extraer información estructurada del CV
+    const prompt = `Analiza el siguiente CV y extrae la información estructurada.
+
+CV:
+${cvText}
+
+Habilidades técnicas disponibles en el sistema: ${habilidadesDisponibles}
+
+Idiomas disponibles en el sistema: ${lenguajesDisponibles}
+
+INSTRUCCIONES:
+1. Para "bio": Resume la experiencia profesional en 2-3 oraciones (máximo 200 palabras)
+2. Para "titulo": Extrae el título profesional actual o el puesto más reciente
+3. Para "ubicacion": Extrae la ciudad/país de residencia
+4. Para "habilidades": Identifica SOLO las habilidades que coincidan EXACTAMENTE con las disponibles en el sistema. Para cada una, asigna un nivel del 1-10 basado en la experiencia mencionada
+5. Para "lenguajes": Identifica SOLO los idiomas que coincidan con los disponibles. Asigna nivel 1-10 (1-3=básico, 4-6=intermedio, 7-8=avanzado, 9-10=nativo)
+
+Responde SOLO con un JSON en este formato exacto:
+{
+  "bio": "texto aquí",
+  "titulo": "texto aquí",
+  "ubicacion": "texto aquí",
+  "habilidades": [
+    { "nombre": "nombre exacto de la habilidad", "nivel": 7 }
+  ],
+  "lenguajes": [
+    { "nombre": "nombre exacto del idioma", "nivel": 8 }
+  ]
+}`;
+
+    const completion = await this.openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: 'Eres un experto en análisis de CVs. Extraes información estructurada de manera precisa.',
+        },
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.3,
+    });
+
+    const datosExtraidos = JSON.parse(completion.choices[0].message.content || '{}');
+
+    // 3. Crear mapas de búsqueda para habilidades y lenguajes
+    const habilidadMap = new Map(todasHabilidades.map(h => [h.nombre.toLowerCase(), h.id]));
+    const lenguajeMap = new Map(todosLenguajes.map(l => [l.nombre.toLowerCase(), l.id]));
+
+    // 4. Actualizar perfil del candidato
+    await this.prisma.candidato.update({
+      where: { id: candidatoId },
+      data: {
+        bio: datosExtraidos.bio,
+        titulo: datosExtraidos.titulo,
+        ubicacion: datosExtraidos.ubicacion,
+      },
+    });
+
+    // 5. Agregar habilidades en batch (usando createMany)
+    const habilidadesParaCrear = datosExtraidos.habilidades
+      ?.map((hab: any) => {
+        const habilidadId = habilidadMap.get(hab.nombre.toLowerCase());
+        if (habilidadId) {
+          return {
+            candidatoId,
+            habilidadId,
+            nivel: hab.nivel,
+          };
+        }
+        return null;
+      })
+      .filter((h: any) => h !== null) || [];
+
+    // 6. Agregar lenguajes en batch
+    const lenguajesParaCrear = datosExtraidos.lenguajes
+      ?.map((lang: any) => {
+        const lenguajeId = lenguajeMap.get(lang.nombre.toLowerCase());
+        if (lenguajeId) {
+          return {
+            candidatoId,
+            lenguajeId,
+            nivel: lang.nivel,
+          };
+        }
+        return null;
+      })
+      .filter((l: any) => l !== null) || [];
+
+    // 7. Ejecutar inserciones en paralelo
+    await Promise.all([
+      habilidadesParaCrear.length > 0
+        ? this.prisma.habilidadesCandidato.createMany({
+            data: habilidadesParaCrear,
+            skipDuplicates: true,
+          })
+        : Promise.resolve(),
+      lenguajesParaCrear.length > 0
+        ? this.prisma.lenguajeCandidato.createMany({
+            data: lenguajesParaCrear,
+            skipDuplicates: true,
+          })
+        : Promise.resolve(),
+    ]);
+
+    // 8. Retornar el perfil actualizado
+    return this.getProfile(candidatoId);
   }
 }

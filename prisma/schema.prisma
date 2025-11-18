@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -14,215 +8,196 @@ datasource db {
 }
 
 model Usuario {
-  id               String    @id @default(uuid())
+  id               String      @id @default(uuid())
   name             String
   lastname         String
-  correo           String    @unique
+  correo           String      @unique
   password         String
   telefono         String?
   fecha_nacimiento DateTime?
-  creado_en        DateTime  @default(now())
-
-  candidato  Candidato?
-  reclutador Reclutador?
+  creado_en        DateTime    @default(now())
+  candidato        Candidato?
+  empresasCreadas  Empresa[]   @relation("EmpresaCreador")
+  reclutador       Reclutador?
 }
 
 model Empresa {
-  id          String       @id @default(uuid())
-  name        String
-  descripcion String?
-  area        String?
-
+  id           String       @id @default(uuid())
+  name         String
+  descripcion  String?
+  area         String?
+  creado_en    DateTime     @default(now())
+  creadorId    String
+  creador      Usuario      @relation("EmpresaCreador", fields: [creadorId], references: [id])
   reclutadores Reclutador[]
   vacantes     Vacante[]
+
+  @@index([creadorId])
 }
 
 model Reclutador {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   posicion  String?
-
-  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
-  usuarioId String   @unique
-
-  empresa   Empresa  @relation(fields: [empresaId], references: [id])
+  usuarioId String    @unique
   empresaId String
-
+  empresa   Empresa   @relation(fields: [empresaId], references: [id])
+  usuario   Usuario   @relation(fields: [usuarioId], references: [id])
   vacantes  Vacante[]
 }
 
 model Modalidad {
-  id      String    @id @default(uuid())
-  nombre  String
-
+  id       String    @id @default(uuid())
+  nombre   String
   vacantes Vacante[]
 }
 
 model Horario {
-  id      String    @id @default(uuid())
-  nombre  String
-
+  id       String    @id @default(uuid())
+  nombre   String
   vacantes Vacante[]
 }
 
 model Vacante {
-  id             String    @id @default(uuid())
-  titulo         String
-  descripcion    String
-  salario_minimo Decimal?  @db.Decimal(12, 2)
-  salario_maximo Decimal?  @db.Decimal(12, 2)
-  creado_en      DateTime  @default(now())
-  estado         String
-
-  empresa      Empresa   @relation(fields: [empresaId], references: [id])
-  empresaId    String
-  reclutador   Reclutador @relation(fields: [reclutadorId], references: [id])
-  reclutadorId String
-  modalidad    Modalidad  @relation(fields: [modalidadId], references: [id])
-  modalidadId  String
-  horario      Horario    @relation(fields: [horarioId], references: [id])
-  horarioId    String
-
-  postulaciones         Postulacion[]
+  id                    String                  @id @default(uuid())
+  titulo                String
+  descripcion           String
+  salario_minimo        Decimal?                @db.Decimal(12, 2)
+  salario_maximo        Decimal?                @db.Decimal(12, 2)
+  creado_en             DateTime                @default(now())
+  estado                String
+  empresaId             String
+  reclutadorId          String
+  modalidadId           String
+  horarioId             String
+  habilidadesDiferencia HabilidadesDiferencia[]
   habilidadesVacante    HabilidadesVacante[]
   lenguajesVacante      LenguajeVacante[]
-  habilidadesDiferencia HabilidadesDiferencia[]
-  recomendaciones Recomendacion[]
+  postulaciones         Postulacion[]
+  recomendaciones       Recomendacion[]
+  empresa               Empresa                 @relation(fields: [empresaId], references: [id])
+  horario               Horario                 @relation(fields: [horarioId], references: [id])
+  modalidad             Modalidad               @relation(fields: [modalidadId], references: [id])
+  reclutador            Reclutador              @relation(fields: [reclutadorId], references: [id])
 
   @@index([estado])
   @@index([empresaId])
   @@index([reclutadorId])
-}         
+}
 
 model Postulacion {
-  id                        String   @id @default(uuid())
+  id                        String    @id @default(uuid())
   puntuacion_compatibilidad Float?
-  creado_en                 DateTime @default(now())
+  creado_en                 DateTime  @default(now())
+  candidatoId               String
+  vacanteId                 String
+  candidato                 Candidato @relation(fields: [candidatoId], references: [id])
+  vacante                   Vacante   @relation(fields: [vacanteId], references: [id])
 
-  candidato   Candidato @relation(fields: [candidatoId], references: [id])
-  candidatoId String
-
-  vacante   Vacante @relation(fields: [vacanteId], references: [id])
-  vacanteId String
-
+  @@unique([candidatoId, vacanteId])
   @@index([candidatoId])
   @@index([vacanteId])
-  @@unique([candidatoId, vacanteId])
 }
 
 model Lenguaje {
-  id     String             @id @default(uuid())
-  nombre String
-
+  id         String              @id @default(uuid())
+  nombre     String
   candidatos LenguajeCandidato[]
   vacantes   LenguajeVacante[]
 }
 
 model LenguajeCandidato {
-  id        String    @id @default(uuid())
-  nivel     Int       // 0-10
-
-  lenguaje   Lenguaje  @relation(fields: [lenguajeId], references: [id])
-  lenguajeId String
-
-  candidato   Candidato @relation(fields: [candidatoId], references: [id])
+  id          String    @id @default(uuid())
+  nivel       Int
+  lenguajeId  String
   candidatoId String
+  candidato   Candidato @relation(fields: [candidatoId], references: [id])
+  lenguaje    Lenguaje  @relation(fields: [lenguajeId], references: [id])
 
   @@unique([candidatoId, lenguajeId])
   @@index([candidatoId])
 }
 
 model LenguajeVacante {
-  id        String   @id @default(uuid())
-  nivel     Int      // 0-10
-
-  lenguaje   Lenguaje @relation(fields: [lenguajeId], references: [id])
+  id         String   @id @default(uuid())
+  nivel      Int
   lenguajeId String
-
-  vacante   Vacante @relation(fields: [vacanteId], references: [id])
-  vacanteId String
+  vacanteId  String
+  lenguaje   Lenguaje @relation(fields: [lenguajeId], references: [id])
+  vacante    Vacante  @relation(fields: [vacanteId], references: [id])
 
   @@unique([vacanteId, lenguajeId])
   @@index([vacanteId])
 }
 
 model Candidato {
-  id             String   @id @default(uuid())
-  titulo         String?
-  bio            String?
-  ubicacion      String?
-  foto_perfil_url String?
-
-  usuario   Usuario @relation(fields: [usuarioId], references: [id])
-  usuarioId String  @unique
-
-  experiencias          ExperienciaCandidato[]
+  id                    String                  @id @default(uuid())
+  titulo                String?
+  bio                   String?
+  ubicacion             String?
+  foto_perfil_url       String?
+  usuarioId             String                  @unique
+  usuario               Usuario                 @relation(fields: [usuarioId], references: [id])
   educaciones           EducacionCandidato[]
+  experiencias          ExperienciaCandidato[]
   habilidadesCandidato  HabilidadesCandidato[]
-  postulaciones         Postulacion[]
-  lenguajesCandidato    LenguajeCandidato[]
   habilidadesDiferencia HabilidadesDiferencia[]
-  recomendaciones       Recomendacion[] 
+  lenguajesCandidato    LenguajeCandidato[]
+  postulaciones         Postulacion[]
+  recomendaciones       Recomendacion[]
 }
 
 model ExperienciaCandidato {
-  id             String   @id @default(uuid())
+  id             String    @id @default(uuid())
   titulo         String
   empresa        String
   fecha_comienzo DateTime?
   fecha_final    DateTime?
   ubicacion      String?
   descripcion    String?
-
-  candidato   Candidato @relation(fields: [candidatoId], references: [id])
-  candidatoId String
+  candidatoId    String
+  candidato      Candidato @relation(fields: [candidatoId], references: [id])
 
   @@index([candidatoId])
 }
 
 model EducacionCandidato {
-  id             String   @id @default(uuid())
+  id             String    @id @default(uuid())
   titulo         String
   institucion    String
   fecha_comienzo DateTime?
   fecha_final    DateTime?
   descripcion    String?
   estado         String
-
-  candidato   Candidato @relation(fields: [candidatoId], references: [id])
-  candidatoId String
+  candidatoId    String
+  candidato      Candidato @relation(fields: [candidatoId], references: [id])
 
   @@index([candidatoId])
 }
 
 model CategoriaHabilidad {
-  id     String       @id @default(uuid())
-  nombre String
-
+  id          String        @id @default(uuid())
+  nombre      String
   habilidades Habilidades[]
 }
 
 model Habilidades {
-  id     String  @id @default(uuid())
-  nombre String
-
-  categoria   CategoriaHabilidad? @relation(fields: [categoriaId], references: [id])
-  categoriaId String?
-
-  habilidadesVacante    HabilidadesVacante[]
+  id                    String                  @id @default(uuid())
+  nombre                String
+  categoriaId           String?
+  categoria             CategoriaHabilidad?     @relation(fields: [categoriaId], references: [id])
   habilidadesCandidato  HabilidadesCandidato[]
   habilidadesDiferencia HabilidadesDiferencia[]
+  habilidadesVacante    HabilidadesVacante[]
 }
 
 model HabilidadesVacante {
-  id        String        @id @default(uuid())
-  nivel     Int           // 0-10
-  requerido String
-
-  vacante   Vacante     @relation(fields: [vacanteId], references: [id])
-  vacanteId String
-
-  habilidad   Habilidades @relation(fields: [habilidadId], references: [id])
+  id          String      @id @default(uuid())
+  nivel       Int
+  requerido   String
+  vacanteId   String
   habilidadId String
+  habilidad   Habilidades @relation(fields: [habilidadId], references: [id])
+  vacante     Vacante     @relation(fields: [vacanteId], references: [id])
 
   @@unique([vacanteId, habilidadId])
   @@index([vacanteId])
@@ -230,14 +205,12 @@ model HabilidadesVacante {
 }
 
 model HabilidadesCandidato {
-  id    String @id @default(uuid())
-  nivel Int    // 0-10
-
-  candidato   Candidato  @relation(fields: [candidatoId], references: [id])
+  id          String      @id @default(uuid())
+  nivel       Int
   candidatoId String
-
-  habilidad   Habilidades @relation(fields: [habilidadId], references: [id])
   habilidadId String
+  candidato   Candidato   @relation(fields: [candidatoId], references: [id])
+  habilidad   Habilidades @relation(fields: [habilidadId], references: [id])
 
   @@unique([candidatoId, habilidadId])
   @@index([candidatoId])
@@ -245,18 +218,14 @@ model HabilidadesCandidato {
 }
 
 model HabilidadesDiferencia {
-  id         String @id @default(uuid())
-  diferencia Int    // diferencia entre nivel requerido y nivel del candidato
-
-  candidato   Candidato  @relation(fields: [candidatoId], references: [id])
-  candidatoId String
-
-  vacante   Vacante @relation(fields: [vacanteId], references: [id])
-  vacanteId String
-
-  habilidad   Habilidades @relation(fields: [habilidadId], references: [id])
-  habilidadId String
-
+  id              String          @id @default(uuid())
+  diferencia      Int
+  candidatoId     String
+  vacanteId       String
+  habilidadId     String
+  candidato       Candidato       @relation(fields: [candidatoId], references: [id])
+  habilidad       Habilidades     @relation(fields: [habilidadId], references: [id])
+  vacante         Vacante         @relation(fields: [vacanteId], references: [id])
   recomendaciones Recomendacion[]
 
   @@unique([candidatoId, vacanteId, habilidadId])
@@ -265,21 +234,16 @@ model HabilidadesDiferencia {
 }
 
 model Recomendacion {
-  id        String   @id @default(uuid())
-  mensaje   String
-  creado_en DateTime @default(now())
-
-  habilidadesDiferencia   HabilidadesDiferencia @relation(fields: [habilidadesDiferenciaId], references: [id])
+  id                      String                @id @default(uuid())
+  mensaje                 String
+  creado_en               DateTime              @default(now())
   habilidadesDiferenciaId String
-
-  candidato   Candidato @relation(fields: [candidatoId], references: [id])
-  candidatoId String
-  
-  vacante   Vacante @relation(fields: [vacanteId], references: [id])
-  vacanteId String
-
-
-  cursos RecomendacionCurso[]
+  candidatoId             String
+  vacanteId               String
+  candidato               Candidato             @relation(fields: [candidatoId], references: [id])
+  habilidadesDiferencia   HabilidadesDiferencia @relation(fields: [habilidadesDiferenciaId], references: [id])
+  vacante                 Vacante               @relation(fields: [vacanteId], references: [id])
+  cursos                  RecomendacionCurso[]
 
   @@index([candidatoId])
   @@index([vacanteId])
@@ -287,26 +251,23 @@ model Recomendacion {
 }
 
 model RecomendacionCurso {
-  id     String @id @default(uuid())
-  estado String
-
-  recomendacion   Recomendacion @relation(fields: [recomendacionId], references: [id])
+  id              String        @id @default(uuid())
+  estado          String
   recomendacionId String
-
-  curso   Curso @relation(fields: [cursoId], references: [id])
-  cursoId String
+  cursoId         String
+  curso           Curso         @relation(fields: [cursoId], references: [id])
+  recomendacion   Recomendacion @relation(fields: [recomendacionId], references: [id])
 
   @@unique([recomendacionId, cursoId])
   @@index([recomendacionId])
 }
 
 model Curso {
-  id       String @id @default(uuid())
-  nombre   String
-  proveedor String?
-  url      String?
-  nivel    Int
-  duracion Int?
-
+  id              String               @id @default(uuid())
+  nombre          String
+  proveedor       String?
+  url             String?
+  nivel           Int
+  duracion        Int?
   recomendaciones RecomendacionCurso[]
 }

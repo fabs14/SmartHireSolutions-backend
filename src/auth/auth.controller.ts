@@ -4,6 +4,7 @@ import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { RegisterCandidatoDto } from './dto/register-candidato.dto';
 import { RegisterReclutadorDto } from './dto/register-reclutador.dto';
+import { RegisterEmpresaDto } from './dto/register-empresa.dto';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
@@ -26,8 +27,18 @@ export class AuthController {
   }
 
   @Post('register/reclutador')
+  @ApiOperation({ summary: 'Registrar reclutador (requiere empresa existente)' })
+  @ApiResponse({ status: 201, description: 'Reclutador registrado exitosamente' })
   async registerReclutador(@Body() registerReclutadorDto: RegisterReclutadorDto) {
     return this.authService.registerReclutador(registerReclutadorDto);
+  }
+
+  @Post('register/empresa')
+  @ApiOperation({ summary: 'Registrar empresa con usuario administrador' })
+  @ApiResponse({ status: 201, description: 'Empresa y administrador creados exitosamente' })
+  @ApiResponse({ status: 409, description: 'El correo ya está registrado' })
+  async registerEmpresa(@Body() registerEmpresaDto: RegisterEmpresaDto) {
+    return this.authService.registerEmpresa(registerEmpresaDto);
   }
 
   @Post('login')
