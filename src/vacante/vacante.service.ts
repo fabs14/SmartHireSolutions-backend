@@ -13,27 +13,66 @@ export class VacanteService {
         id: reclutadorId,
         empresaId: createVacanteDto.empresaId 
       },
+      select: { id: true }
     });
 
     if (!reclutador) {
       throw new ForbiddenException('No puedes crear vacantes para esta empresa');
     }
 
-    return this.prisma.vacante.create({
-      data: {
-        ...createVacanteDto,
-        reclutadorId,
-        estado: 'ABIERTA',
-      },
-      include: {
-        empresa: true,
-        reclutador: { include: { usuario: { select: { name: true, lastname: true, correo: true } } } },
-        modalidad: true,
-        horario: true,
-        _count: {
-          select: { postulaciones: true },
+    const { habilidades, lenguajes, ...vacanteData } = createVacanteDto;
+
+    return this.prisma.$transaction(async (prisma) => {
+      const vacante = await prisma.vacante.create({
+        data: {
+          ...vacanteData,
+          reclutadorId,
+          estado: 'ABIERTA',
         },
-      },
+      });
+
+      // Crear habilidades y lenguajes en paralelo
+      await Promise.all([
+        habilidades?.length ? prisma.habilidadesVacante.createMany({
+          data: habilidades.map(h => ({
+            vacanteId: vacante.id,
+            habilidadId: h.habilidadId,
+            nivel: h.nivel,
+            requerido: h.requerido,
+          })),
+        }) : Promise.resolve(),
+        lenguajes?.length ? prisma.lenguajeVacante.createMany({
+          data: lenguajes.map(l => ({
+            vacanteId: vacante.id,
+            lenguajeId: l.lenguajeId,
+            nivel: l.nivel,
+          })),
+        }) : Promise.resolve(),
+      ]);
+
+      // Retornar vacante completa
+      return prisma.vacante.findUnique({
+        where: { id: vacante.id },
+        include: {
+          empresa: true,
+          reclutador: { include: { usuario: { select: { name: true, lastname: true, correo: true } } } },
+          modalidad: true,
+          horario: true,
+          habilidadesVacante: {
+            include: {
+              habilidad: {
+                include: { categoria: true }
+              }
+            }
+          },
+          lenguajesVacante: {
+            include: { lenguaje: true }
+          },
+          _count: {
+            select: { postulaciones: true },
+          },
+        },
+      });
     });
   }
 
@@ -119,6 +158,13 @@ export class VacanteService {
     if (!vacante) {
       throw new ForbiddenException('Vacante no encontrada o no tienes permiso para eliminarla');
     }
+
+    // Eliminar relaciones antes de eliminar la vacante
+    await Promise.all([
+      this.prisma.habilidadesVacante.deleteMany({ where: { vacanteId: id } }),
+      this.prisma.lenguajeVacante.deleteMany({ where: { vacanteId: id } }),
+      this.prisma.postulacion.deleteMany({ where: { vacanteId: id } }),
+    ]);
 
     await this.prisma.vacante.delete({ where: { id } });
     return { message: 'Vacante eliminada exitosamente' };

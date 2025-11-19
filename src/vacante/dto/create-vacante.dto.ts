@@ -1,6 +1,34 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsOptional, IsNumber, IsUUID, Min } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsNumber, IsUUID, Min, IsArray, ValidateNested, IsInt, Max } from 'class-validator';
 import { Type } from 'class-transformer';
+
+export class HabilidadVacanteDto {
+  @ApiProperty({ example: 'uuid-habilidad' })
+  @IsUUID()
+  habilidadId: string;
+
+  @ApiProperty({ example: 4, minimum: 1, maximum: 5 })
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  nivel: number;
+
+  @ApiProperty({ example: 'OBLIGATORIO', enum: ['OBLIGATORIO', 'DESEABLE'] })
+  @IsString()
+  requerido: string;
+}
+
+export class LenguajeVacanteDto {
+  @ApiProperty({ example: 'uuid-lenguaje' })
+  @IsUUID()
+  lenguajeId: string;
+
+  @ApiProperty({ example: 3, minimum: 1, maximum: 5 })
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  nivel: number;
+}
 
 export class CreateVacanteDto {
   @ApiProperty({ example: 'Desarrollador Full Stack Senior' })
@@ -43,4 +71,18 @@ export class CreateVacanteDto {
   @IsUUID()
   @IsNotEmpty()
   horarioId: string;
+
+  @ApiProperty({ type: [HabilidadVacanteDto], required: false })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => HabilidadVacanteDto)
+  habilidades?: HabilidadVacanteDto[];
+
+  @ApiProperty({ type: [LenguajeVacanteDto], required: false })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => LenguajeVacanteDto)
+  lenguajes?: LenguajeVacanteDto[];
 }
