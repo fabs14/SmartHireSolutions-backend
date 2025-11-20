@@ -235,6 +235,8 @@ export class CandidatoService {
     const habilidadesDisponibles = todasHabilidades.map(h => h.nombre).join(', ');
     const lenguajesDisponibles = todosLenguajes.map(l => l.nombre).join(', ');
 
+  
+
     // 2. Usar GPT-4 Vision para extraer información estructurada del CV
     const prompt = `Analiza la imagen del CV y extrae la información estructurada.
 
@@ -248,7 +250,20 @@ INSTRUCCIONES:
 3. Para "titulo": Extrae el título profesional actual o el puesto más reciente
 4. Para "ubicacion": Extrae la ciudad/país de residencia
 5. Para "habilidades": Identifica SOLO las habilidades que coincidan EXACTAMENTE con las disponibles en el sistema. Para cada una, asigna un nivel del 1-10 basado en la experiencia mencionada
-6. Para "lenguajes": Identifica SOLO los idiomas que coincidan con los disponibles. Asigna nivel 1-10 (1-3=básico, 4-6=intermedio, 7-8=avanzado, 9-10=nativo)
+6. Para "lenguajes": Identifica los idiomas del CV y usa EXACTAMENTE los nombres de esta lista (${lenguajesDisponibles}). Si el CV dice "English" usa "Ingles", si dice "Spanish" usa "Español", etc. Asigna nivel 1-10 (1-3=básico, 4-6=intermedio, 7-8=avanzado, 9-10=nativo)
+7. Para "experiencias": Extrae TODAS las experiencias laborales con formato:
+   - empresa: nombre de la empresa
+   - puesto: título del puesto
+   - descripcion: descripción breve
+   - fecha_comienzo: formato YYYY-MM-DD
+   - fecha_fin: formato YYYY-MM-DD o null si es actual
+8. Para "educaciones": Extrae TODAS las educaciones con formato:
+   - titulo: título o carrera
+   - institucion: nombre de la institución
+   - descripcion: descripción breve
+   - estado: COMPLETADO, EN_CURSO o INCOMPLETO
+   - fecha_comienzo: formato YYYY-MM-DD
+   - fecha_fin: formato YYYY-MM-DD o null si está en curso
 
 Responde SOLO con un JSON en este formato exacto:
 {
@@ -260,6 +275,25 @@ Responde SOLO con un JSON en este formato exacto:
   ],
   "lenguajes": [
     { "nombre": "nombre exacto del idioma", "nivel": 8 }
+  ],
+  "experiencias": [
+    { 
+      "empresa": "Nombre Empresa",
+      "puesto": "Cargo",
+      "descripcion": "Descripción",
+      "fecha_comienzo": "2023-01-15",
+      "fecha_fin": null
+    }
+  ],
+  "educaciones": [
+    {
+      "titulo": "Ingeniería en Sistemas",
+      "institucion": "Universidad X",
+      "descripcion": "Descripción",
+      "estado": "EN_CURSO",
+      "fecha_comienzo": "2022-01-01",
+      "fecha_fin": null
+    }
   ]
 }`;
 
@@ -284,6 +318,7 @@ Responde SOLO con un JSON en este formato exacto:
     });
 
     const datosExtraidos = JSON.parse(response.choices[0].message.content || '{}');
+
 
     // 3. Crear mapas de búsqueda para habilidades y lenguajes
     const habilidadMap = new Map(todasHabilidades.map(h => [h.nombre.toLowerCase(), h.id]));
@@ -329,7 +364,35 @@ Responde SOLO con un JSON en este formato exacto:
       })
       .filter((l: any) => l !== null) || [];
 
-    // 7. Ejecutar inserciones en paralelo
+    console.log('🌍 Lenguajes para crear:', lenguajesParaCrear.length);
+    console.log('🌍 Detalle lenguajes:', JSON.stringify(lenguajesParaCrear, null, 2));
+
+    // 7. Procesar experiencias laborales
+    const experienciasParaCrear = datosExtraidos.experiencias
+      ?.map((exp: any) => ({
+        candidatoId,
+        titulo: exp.puesto,
+        empresa: exp.empresa,
+        descripcion: exp.descripcion || '',
+        fecha_comienzo: exp.fecha_comienzo ? new Date(exp.fecha_comienzo) : null,
+        fecha_final: exp.fecha_fin ? new Date(exp.fecha_fin) : null,
+      }))
+      .filter((e: any) => e.empresa && e.titulo && e.fecha_comienzo) || [];
+
+    // 8. Procesar educaciones
+    const educacionesParaCrear = datosExtraidos.educaciones
+      ?.map((edu: any) => ({
+        candidatoId,
+        titulo: edu.titulo,
+        institucion: edu.institucion,
+        descripcion: edu.descripcion || '',
+        estado: edu.estado || 'COMPLETADO',
+        fecha_comienzo: edu.fecha_comienzo ? new Date(edu.fecha_comienzo) : null,
+        fecha_final: edu.fecha_fin ? new Date(edu.fecha_fin) : null,
+      }))
+      .filter((e: any) => e.titulo && e.institucion && e.fecha_comienzo) || [];
+
+    // 9. Ejecutar inserciones en paralelo
     await Promise.all([
       habilidadesParaCrear.length > 0
         ? this.prisma.habilidadesCandidato.createMany({
@@ -343,9 +406,21 @@ Responde SOLO con un JSON en este formato exacto:
             skipDuplicates: true,
           })
         : Promise.resolve(),
+      experienciasParaCrear.length > 0
+        ? this.prisma.experienciaCandidato.createMany({
+            data: experienciasParaCrear,
+            skipDuplicates: true,
+          })
+        : Promise.resolve(),
+      educacionesParaCrear.length > 0
+        ? this.prisma.educacionCandidato.createMany({
+            data: educacionesParaCrear,
+            skipDuplicates: true,
+          })
+        : Promise.resolve(),
     ]);
 
-    // 8. Retornar el perfil actualizado
+    // 10. Retornar el perfil actualizado
     return this.getProfile(candidatoId);
   }
 }
