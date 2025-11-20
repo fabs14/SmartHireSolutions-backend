@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger'
 import { CandidatoService } from './candidato.service';
 import { UpdateCandidatoDto } from './dto/update-candidato.dto';
 import { ParseCvDto } from './dto/parse-cv.dto';
+import { UploadPhotoDto } from './dto/upload-photo.dto';
 import { AddHabilidadCandidatoDto, AddLenguajeCandidatoDto } from './dto/create-candidato.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -39,6 +40,24 @@ export class CandidatoController {
   @ApiOperation({ summary: 'Procesar imagen de CV con GPT-4 Vision y actualizar perfil automáticamente' })
   parseCv(@GetUser() user: any, @Body() parseCvDto: ParseCvDto) {
     return this.candidatoService.parseCvWithGPT(user.candidato.id, parseCvDto);
+  }
+
+  @Post('profile/upload-photo')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('candidato')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Subir foto de perfil a S3' })
+  uploadProfilePhoto(@GetUser() user: any, @Body() uploadPhotoDto: UploadPhotoDto) {
+    return this.candidatoService.uploadProfilePhoto(user.candidato.id, uploadPhotoDto);
+  }
+
+  @Get('recomendaciones')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('candidato')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Ver mis recomendaciones personalizadas con cursos sugeridos' })
+  getRecomendaciones(@GetUser() user: any) {
+    return this.candidatoService.getRecomendaciones(user.candidato.id);
   }
 
   @Post('profile/habilidades')

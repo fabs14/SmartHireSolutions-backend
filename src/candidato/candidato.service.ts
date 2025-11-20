@@ -1,14 +1,19 @@
 import { Injectable, NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
 import { UpdateCandidatoDto } from './dto/update-candidato.dto';
 import { ParseCvDto } from './dto/parse-cv.dto';
+import { UploadPhotoDto } from './dto/upload-photo.dto';
 import { PrismaService } from '../prisma/prisma.service';
+import { S3Service } from '../s3/s3.service';
 import OpenAI from 'openai';
 
 @Injectable()
 export class CandidatoService {
   private openai: OpenAI;
 
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+    private s3Service: S3Service,
+  ) {
     this.openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });
@@ -422,5 +427,87 @@ Responde SOLO con un JSON en este formato exacto:
 
     // 10. Retornar el perfil actualizado
     return this.getProfile(candidatoId);
+  }
+
+  async uploadProfilePhoto(candidatoId: string, uploadPhotoDto: UploadPhotoDto) {
+    const { imageData } = uploadPhotoDto;
+
+    // Extraer el tipo MIME y los datos base64
+    const matches = imageData.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+    if (!matches || matches.length !== 3) {
+      throw new Error('Formato de imagen inválido. Debe ser base64.');
+    }
+
+    const mimeType = matches[1];
+    const base64Data = matches[2];
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    // Determinar extensión del archivo
+    const extension = mimeType.split('/')[1] || 'jpg';
+    const fileName = `${candidatoId}.${extension}`;
+
+    // Subir a S3
+    const photoUrl = await this.s3Service.uploadFile(buffer, fileName, mimeType);
+
+    // Actualizar la URL en la base de datos
+    await this.prisma.candidato.update({
+      where: { id: candidatoId },
+      data: { foto_perfil_url: photoUrl },
+    });
+
+    return {
+      message: 'Foto de perfil actualizada exitosamente',
+      foto_perfil_url: photoUrl,
+    };
+  }
+
+  async getRecomendaciones(candidatoId: string) {
+    const recomendaciones = await this.prisma.recomendacion.findMany({
+      where: { candidatoId },
+      include: {
+        vacante: {
+          select: {
+            id: true,
+            titulo: true,
+            empresa: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+        habilidadesDiferencia: {
+          include: {
+            habilidad: {
+              select: {
+                id: true,
+                nombre: true,
+              },
+            },
+          },
+        },
+        cursos: {
+          include: {
+            curso: {
+              select: {
+                id: true,
+                nombre: true,
+                url: true,
+                nivel: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        creado_en: 'desc',
+      },
+    });
+
+    return {
+      total: recomendaciones.length,
+      recomendaciones,
+    };
   }
 }
