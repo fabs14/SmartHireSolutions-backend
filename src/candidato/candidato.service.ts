@@ -2,6 +2,8 @@ import { Injectable, NotFoundException, ForbiddenException, ConflictException } 
 import { UpdateCandidatoDto } from './dto/update-candidato.dto';
 import { ParseCvDto } from './dto/parse-cv.dto';
 import { UploadPhotoDto } from './dto/upload-photo.dto';
+import { CreateExperienciaDto, UpdateExperienciaDto } from './dto/experiencia.dto';
+import { CreateEducacionDto, UpdateEducacionDto } from './dto/educacion.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { S3Service } from '../s3/s3.service';
 import OpenAI from 'openai';
@@ -509,5 +511,111 @@ Responde SOLO con un JSON en este formato exacto:
       total: recomendaciones.length,
       recomendaciones,
     };
+  }
+
+  // ==================== EXPERIENCIA LABORAL ====================
+  async addExperiencia(candidatoId: string, dto: CreateExperienciaDto) {
+    return this.prisma.experienciaCandidato.create({
+      data: {
+        candidatoId,
+        titulo: dto.titulo,
+        empresa: dto.empresa,
+        descripcion: dto.descripcion,
+        ubicacion: dto.ubicacion,
+        fecha_comienzo: dto.fecha_comienzo ? new Date(dto.fecha_comienzo) : null,
+        fecha_final: dto.fecha_final ? new Date(dto.fecha_final) : null,
+      },
+    });
+  }
+
+  async updateExperiencia(candidatoId: string, experienciaId: string, dto: UpdateExperienciaDto) {
+    const experiencia = await this.prisma.experienciaCandidato.findFirst({
+      where: { id: experienciaId, candidatoId },
+    });
+
+    if (!experiencia) {
+      throw new NotFoundException('Experiencia no encontrada');
+    }
+
+    return this.prisma.experienciaCandidato.update({
+      where: { id: experienciaId },
+      data: {
+        ...(dto.titulo && { titulo: dto.titulo }),
+        ...(dto.empresa && { empresa: dto.empresa }),
+        ...(dto.descripcion !== undefined && { descripcion: dto.descripcion }),
+        ...(dto.ubicacion !== undefined && { ubicacion: dto.ubicacion }),
+        ...(dto.fecha_comienzo && { fecha_comienzo: new Date(dto.fecha_comienzo) }),
+        ...(dto.fecha_final !== undefined && { fecha_final: dto.fecha_final ? new Date(dto.fecha_final) : null }),
+      },
+    });
+  }
+
+  async removeExperiencia(candidatoId: string, experienciaId: string) {
+    const experiencia = await this.prisma.experienciaCandidato.findFirst({
+      where: { id: experienciaId, candidatoId },
+    });
+
+    if (!experiencia) {
+      throw new NotFoundException('Experiencia no encontrada');
+    }
+
+    await this.prisma.experienciaCandidato.delete({
+      where: { id: experienciaId },
+    });
+
+    return { message: 'Experiencia eliminada exitosamente' };
+  }
+
+  // ==================== EDUCACIÓN ====================
+  async addEducacion(candidatoId: string, dto: CreateEducacionDto) {
+    return this.prisma.educacionCandidato.create({
+      data: {
+        candidatoId,
+        titulo: dto.titulo,
+        institucion: dto.institucion,
+        descripcion: dto.descripcion,
+        estado: dto.estado,
+        fecha_comienzo: dto.fecha_comienzo ? new Date(dto.fecha_comienzo) : null,
+        fecha_final: dto.fecha_final ? new Date(dto.fecha_final) : null,
+      },
+    });
+  }
+
+  async updateEducacion(candidatoId: string, educacionId: string, dto: UpdateEducacionDto) {
+    const educacion = await this.prisma.educacionCandidato.findFirst({
+      where: { id: educacionId, candidatoId },
+    });
+
+    if (!educacion) {
+      throw new NotFoundException('Educación no encontrada');
+    }
+
+    return this.prisma.educacionCandidato.update({
+      where: { id: educacionId },
+      data: {
+        ...(dto.titulo && { titulo: dto.titulo }),
+        ...(dto.institucion && { institucion: dto.institucion }),
+        ...(dto.descripcion !== undefined && { descripcion: dto.descripcion }),
+        ...(dto.estado && { estado: dto.estado }),
+        ...(dto.fecha_comienzo && { fecha_comienzo: new Date(dto.fecha_comienzo) }),
+        ...(dto.fecha_final !== undefined && { fecha_final: dto.fecha_final ? new Date(dto.fecha_final) : null }),
+      },
+    });
+  }
+
+  async removeEducacion(candidatoId: string, educacionId: string) {
+    const educacion = await this.prisma.educacionCandidato.findFirst({
+      where: { id: educacionId, candidatoId },
+    });
+
+    if (!educacion) {
+      throw new NotFoundException('Educación no encontrada');
+    }
+
+    await this.prisma.educacionCandidato.delete({
+      where: { id: educacionId },
+    });
+
+    return { message: 'Educación eliminada exitosamente' };
   }
 }

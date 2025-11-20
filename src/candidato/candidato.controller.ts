@@ -4,6 +4,8 @@ import { CandidatoService } from './candidato.service';
 import { UpdateCandidatoDto } from './dto/update-candidato.dto';
 import { ParseCvDto } from './dto/parse-cv.dto';
 import { UploadPhotoDto } from './dto/upload-photo.dto';
+import { CreateExperienciaDto, UpdateExperienciaDto } from './dto/experiencia.dto';
+import { CreateEducacionDto, UpdateEducacionDto } from './dto/educacion.dto';
 import { AddHabilidadCandidatoDto, AddLenguajeCandidatoDto } from './dto/create-candidato.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -120,6 +122,70 @@ export class CandidatoController {
   @ApiOperation({ summary: 'Eliminar lenguaje del perfil' })
   removeLenguaje(@GetUser() user: any, @Param('lenguajeId') lenguajeId: string) {
     return this.candidatoService.removeLenguaje(user.candidato.id, lenguajeId);
+  }
+
+  // ==================== EXPERIENCIA LABORAL ====================
+  @Post('profile/experiencias')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('candidato')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Agregar experiencia laboral' })
+  addExperiencia(@GetUser() user: any, @Body() dto: CreateExperienciaDto) {
+    return this.candidatoService.addExperiencia(user.candidato.id, dto);
+  }
+
+  @Patch('profile/experiencias/:experienciaId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('candidato')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Actualizar experiencia laboral' })
+  updateExperiencia(
+    @GetUser() user: any,
+    @Param('experienciaId') experienciaId: string,
+    @Body() dto: UpdateExperienciaDto,
+  ) {
+    return this.candidatoService.updateExperiencia(user.candidato.id, experienciaId, dto);
+  }
+
+  @Delete('profile/experiencias/:experienciaId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('candidato')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Eliminar experiencia laboral' })
+  removeExperiencia(@GetUser() user: any, @Param('experienciaId') experienciaId: string) {
+    return this.candidatoService.removeExperiencia(user.candidato.id, experienciaId);
+  }
+
+  // ==================== EDUCACIÓN ====================
+  @Post('profile/educaciones')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('candidato')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Agregar educación' })
+  addEducacion(@GetUser() user: any, @Body() dto: CreateEducacionDto) {
+    return this.candidatoService.addEducacion(user.candidato.id, dto);
+  }
+
+  @Patch('profile/educaciones/:educacionId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('candidato')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Actualizar educación' })
+  updateEducacion(
+    @GetUser() user: any,
+    @Param('educacionId') educacionId: string,
+    @Body() dto: UpdateEducacionDto,
+  ) {
+    return this.candidatoService.updateEducacion(user.candidato.id, educacionId, dto);
+  }
+
+  @Delete('profile/educaciones/:educacionId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('candidato')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Eliminar educación' })
+  removeEducacion(@GetUser() user: any, @Param('educacionId') educacionId: string) {
+    return this.candidatoService.removeEducacion(user.candidato.id, educacionId);
   }
 
   @Get('search')
