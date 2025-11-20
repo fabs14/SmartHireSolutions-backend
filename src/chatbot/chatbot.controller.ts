@@ -2,7 +2,7 @@ import { Controller, Post, Get, Delete, Body, Param, UseGuards, Request } from '
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ChatbotService } from './chatbot.service';
 import { ChatMessageDto } from './dto/chat-message.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 
 @ApiTags('chatbot')
 @Controller('chatbot')
@@ -10,7 +10,8 @@ export class ChatbotController {
   constructor(private readonly chatbotService: ChatbotService) {}
 
   @Post('chat')
-  @ApiOperation({ summary: 'Enviar mensaje al chatbot - Guía de la plataforma' })
+  @UseGuards(OptionalJwtAuthGuard)
+  @ApiOperation({ summary: 'Enviar mensaje al chatbot - Guía de la plataforma (autenticación opcional)' })
   @ApiBearerAuth()
   async chat(@Body() chatMessageDto: ChatMessageDto, @Request() req: any) {
     // Si el usuario está autenticado, pasar su información
