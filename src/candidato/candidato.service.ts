@@ -50,6 +50,12 @@ export class CandidatoService {
           },
           orderBy: { nivel: 'desc' },
         },
+        experiencias: {
+          orderBy: { fecha_comienzo: 'desc' },
+        },
+        educaciones: {
+          orderBy: { fecha_comienzo: 'desc' },
+        },
         _count: {
           select: {
             postulaciones: true,
