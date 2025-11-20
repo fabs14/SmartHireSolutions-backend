@@ -36,6 +36,7 @@ export class VacanteController {
   @ApiQuery({ name: 'nivelLenguajeMin', required: false })
   @ApiQuery({ name: 'salarioMin', required: false })
   @ApiQuery({ name: 'salarioMax', required: false })
+  @ApiQuery({ name: 'titulo', required: false, description: 'Buscar por título similar' })
   @ApiQuery({ name: 'page', required: false })
   @ApiQuery({ name: 'limit', required: false })
   findAll(
@@ -49,6 +50,7 @@ export class VacanteController {
     @Query('nivelLenguajeMin') nivelLenguajeMin?: string,
     @Query('salarioMin') salarioMin?: string,
     @Query('salarioMax') salarioMax?: string,
+    @Query('titulo') titulo?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
@@ -66,6 +68,7 @@ export class VacanteController {
         nivelLenguajeMin: nivelLenguajeMin ? parseInt(nivelLenguajeMin) : undefined,
         salarioMin: salarioMin ? parseFloat(salarioMin) : undefined,
         salarioMax: salarioMax ? parseFloat(salarioMax) : undefined,
+        titulo,
       },
       pageNum,
       limitNum,

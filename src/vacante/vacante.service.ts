@@ -14,6 +14,7 @@ export interface FilterVacantesDto {
   nivelLenguajeMin?: number;
   salarioMin?: number;
   salarioMax?: number;
+  titulo?: string;
 }
 
 @Injectable()
@@ -101,6 +102,14 @@ export class VacanteService {
     if (filtros?.empresaId) where.empresaId = filtros.empresaId;
     if (filtros?.modalidadId) where.modalidadId = filtros.modalidadId;
     if (filtros?.horarioId) where.horarioId = filtros.horarioId;
+
+    // Búsqueda por título similar (insensible a mayúsculas)
+    if (filtros?.titulo) {
+      where.titulo = {
+        contains: filtros.titulo,
+        mode: 'insensitive',
+      };
+    }
 
     // Filtros de salario
     if (filtros?.salarioMin !== undefined || filtros?.salarioMax !== undefined) {
