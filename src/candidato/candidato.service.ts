@@ -371,8 +371,6 @@ Responde SOLO con un JSON en este formato exacto:
       })
       .filter((l: any) => l !== null) || [];
 
-    console.log('🌍 Lenguajes para crear:', lenguajesParaCrear.length);
-    console.log('🌍 Detalle lenguajes:', JSON.stringify(lenguajesParaCrear, null, 2));
 
     // 7. Procesar experiencias laborales
     const experienciasParaCrear = datosExtraidos.experiencias
